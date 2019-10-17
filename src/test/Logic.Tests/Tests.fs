@@ -22,6 +22,7 @@ open System
 [<Tests>]
 let overlapTests = 
   testList "Overlap tests" [
+    
     test "A request overlaps with itself" {
       let request = {
         UserId = "jdoe"
@@ -33,6 +34,26 @@ let overlapTests =
       Expect.isTrue (Logic.overlapsWith request request) "A request should overlap with istself"
     }
 
+    
+    test "AM PM TEST" {
+      let request1 = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 10, 1); HalfDay = AM }
+        End = { Date = DateTime(2019, 10, 1); HalfDay = AM }
+      }
+      
+      let request2 = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 10, 1); HalfDay = PM }
+        End = { Date = DateTime(2019, 10, 1); HalfDay = PM }
+      }
+      
+      Expect.isFalse (Logic.overlapsWith request1 request2) "A request should overlap with istself"
+    }
+    
+    
     test "Requests on 2 distinct days don't overlap" {
       let request1 = {
         UserId = "jdoe"
@@ -49,6 +70,9 @@ let overlapTests =
       }
 
       Expect.isFalse (Logic.overlapsWith request1 request2) "The requests don't overlap"
+    }
+    test "Tuple shall overlaps" {
+        Expect.isFalse (Logic.intervalOverlaps (1,1) (2,2) ) "A request should overlap with istself"
     }
   ]
 
@@ -85,3 +109,4 @@ let validationTests =
       |> Then (Ok [RequestValidated request]) "The request should have been validated"
     }
   ]
+  
