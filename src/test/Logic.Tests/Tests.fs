@@ -91,7 +91,20 @@ let creationTests =
       |> When (RequestTimeOff request)
       |> Then (Ok [RequestCreated request]) "The request should have been created"
     }
+    test "Overlapping Request " {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM } }
+      Given [ RequestCreated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (RequestTimeOff request)
+      |> Then (Error "Overlapping request")  "Request Shouldn't be created"
+    }
+    
   ]
+
 
 [<Tests>]
 let validationTests =
