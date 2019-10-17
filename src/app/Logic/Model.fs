@@ -74,8 +74,12 @@ module Logic =
             
 
         
-    let overlapsWithAnyRequest (otherRequests: TimeOffRequest seq) request =
-        false //TODO: write this function using overlapsWith
+    let overlapsWithAnyRequest(otherRequests: TimeOffRequest seq) request =
+        let mutable result = false 
+        for arequest in otherRequests do
+            if overlapsWith arequest request then
+                result <- true
+        result
 
     let createRequest activeUserRequests  request =
         if request |> overlapsWithAnyRequest activeUserRequests then
