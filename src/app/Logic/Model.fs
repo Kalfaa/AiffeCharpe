@@ -53,27 +53,25 @@ module Logic =
         let newRequestState = evolveRequest requestState event
         userRequests.Add (event.Request.RequestId, newRequestState)
 
-    let intervalOverlaps (start1,end1) (start2,end2) =
-        if end1 >= start2 && end2 >= start1 then true
-        else false
-        
-    let intervalOverlapsDay (start1,end1) (starthalf1,endhalf1) (start2,end2) (starthalf2,endhalf2) =
-        if end1 >= start2 && end2 >= start1 then 
-             start1 = start2 && starthalf1 = starthalf2 || end1 =end2 && endhalf1 = endhalf2  else false
+    let intervalOverlaps (start1: int, end1: int) (start2: int, end2: int) = end1 >= start2 && end2 >= start1
+
+    let intervalOverlapsDay (start1: int, end1: int) (starthalf1: HalfDay, endhalf1: HalfDay) (start2: int, end2: int) (starthalf2: HalfDay, endhalf2: HalfDay) =
+        end1 >= start2 &&
+        end2 >= start1 &&
+        start1 = start2 &&
+        starthalf1 = starthalf2 ||
+        end1 = end2 &&
+        endhalf1 = endhalf2
     
     let overlapsWith request1 request2 =
         let StartDate1 = request1.Start.Date
         let EndDate1 = request1.End.Date
         let StartDate2 = request2.Start.Date
         let EndDate2 = request2.End.Date
-        if intervalOverlaps (StartDate1.Year,EndDate1.Year) (StartDate2.Year,EndDate2.Year)
-           && intervalOverlaps (StartDate1.Month,EndDate1.Month) (StartDate2.Month,EndDate2.Month)
-               && intervalOverlapsDay (StartDate1.Day,EndDate1.Day)(request1.Start.HalfDay,request1.End.HalfDay) (StartDate2.Day,EndDate2.Day) (request2.Start.HalfDay,request2.End.HalfDay)
-               then true
-               else false 
-            
+        intervalOverlaps (StartDate1.Year,EndDate1.Year) (StartDate2.Year,EndDate2.Year)
+            && intervalOverlaps (StartDate1.Month,EndDate1.Month) (StartDate2.Month,EndDate2.Month)
+            && intervalOverlapsDay (StartDate1.Day,EndDate1.Day)(request1.Start.HalfDay,request1.End.HalfDay) (StartDate2.Day,EndDate2.Day) (request2.Start.HalfDay,request2.End.HalfDay)
 
-        
     let overlapsWithAnyRequest(otherRequests: TimeOffRequest seq) request =
         let mutable result = false 
         for arequest in otherRequests do
