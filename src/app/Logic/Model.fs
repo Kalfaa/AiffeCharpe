@@ -72,13 +72,7 @@ module Logic =
             && intervalOverlaps (StartDate1.Month,EndDate1.Month) (StartDate2.Month,EndDate2.Month)
             && intervalOverlapsDay (StartDate1.Day,EndDate1.Day)(request1.Start.HalfDay,request1.End.HalfDay) (StartDate2.Day,EndDate2.Day) (request2.Start.HalfDay,request2.End.HalfDay)
 
-    let overlapsWithAnyRequest(otherRequests: TimeOffRequest seq) request =
-        let mutable result = false 
-        for arequest in otherRequests do
-            if overlapsWith arequest request then
-                result <- true
-        result
-
+    let overlapsWithAnyRequest(otherRequests: TimeOffRequest seq) request = Seq.tryFind (overlapsWith request) otherRequests <> None
 
     let createRequest activeUserRequests  request =
         if request |> overlapsWithAnyRequest activeUserRequests then
