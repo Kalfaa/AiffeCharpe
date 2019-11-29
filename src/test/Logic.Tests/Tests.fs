@@ -136,8 +136,8 @@ let cancelTest =
           
       Given [ RequestCreated request ]
       |> ConnectedAs Manager
-      |> When (ValidateRequest ("jdoe", request.RequestId))
-      |> Then (Ok [RequestValidated request]) "The request should have been validated"
+      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancel request]) "The request should have been validated"
      }
   ]
   
