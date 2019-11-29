@@ -310,3 +310,5 @@ $RECYCLE.BIN/
 *.lnk
 
 output.html
+
+.paket
