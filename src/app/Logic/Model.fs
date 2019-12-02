@@ -124,7 +124,7 @@ module Logic =
 
             | ValidateRequest (_, requestId) ->
                 if user <> Manager then
-                    Error "Unauthorized"
+                    Error "Unauthorized"    
                 else
                     let requestState = defaultArg (userRequests.TryFind requestId) NotCreated
                     validateRequest requestState
