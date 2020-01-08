@@ -47,9 +47,9 @@ module Logic =
             | NotCreated -> false
             | PendingValidation _
             | Validated _ -> true
-            | PendingCancellation _ -> false
+            | PendingCancellation _
             | Cancelled _ -> false
-        
+
     type UserRequestsState = Map<Guid, RequestState>
 
     let evolveRequest state event =
@@ -102,7 +102,7 @@ module Logic =
             
     let cancelRequest requestState =
         match requestState with
-        | Cancelled request ->
+        | PendingCancellation request ->
             if request.Start.Date <= DateTime.Today then
                 Error "The cancellation request is in the past"
             else
