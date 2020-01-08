@@ -271,5 +271,19 @@ let cancelTest =
       |> When (CancelRequest ("jdoe", request.RequestId))
       |> Then (Error "Already cancelled") "The request should not have been cancelled"
      }
+    
+    test "Cancellation by manager of a past request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestValidated request ]
+      |> ConnectedAs Manager
+      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelled request]) "The request should have been cancelled"
+     }
   ]
   

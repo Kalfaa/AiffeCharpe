@@ -54,7 +54,7 @@ module Logic =
         | RequestCreated request -> PendingValidation request
         | RequestValidated request -> Validated request
         | RequestCancelled request -> Cancelled request
-        
+
     let evolveUserRequests (userRequests: UserRequestsState) (event: RequestEvent) =
         let requestState = defaultArg (Map.tryFind event.Request.RequestId userRequests) NotCreated
         let newRequestState = evolveRequest requestState event
@@ -97,16 +97,19 @@ module Logic =
         | _ ->
             Error "Request cannot be validated"
             
-    let cancelRequest requestState =
+    let cancelRequest user requestState =
         match requestState with
         | Cancelled _ ->
             Error "Already cancelled"
         | Validated request
         | PendingValidation request ->
             if request.Start.Date <= DateTime.Today then
-                Error "The cancellation request is in the past"
+                if user = Manager then
+                    Ok [RequestCancelled request]
+                else
+                    Error "The cancellation request is in the past"
             else
-                Ok [RequestCancelled request]
+                Ok [RequestCancelled request] 
         | _ ->
             Error "Request cannot be validated"
 
@@ -135,5 +138,5 @@ module Logic =
                     validateRequest requestState
             | CancelRequest (_,requestId) ->
                 let requestState = defaultArg (userRequests.TryFind requestId) NotCreated                
-                cancelRequest requestState
+                cancelRequest user requestState
                      
