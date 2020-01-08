@@ -257,5 +257,19 @@ let cancelTest =
       |> When (CancelRequest ("jdoe", request.RequestId))
       |> Then (Error "The cancellation request is in the past") "The request should not have been cancelled"
      }
+    
+    test "Cancellation by employee or a cancelled request is impossible" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancelled request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> Then (Error "Already cancelled") "The request should not have been cancelled"
+     }
   ]
   

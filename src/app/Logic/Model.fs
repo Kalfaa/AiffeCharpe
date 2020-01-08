@@ -31,7 +31,6 @@ type RequestEvent =
 module Logic =                                            
     type RequestState =
         | NotCreated
-        | PendingCancellation of TimeOffRequest
         | PendingValidation of TimeOffRequest
         | Validated of TimeOffRequest
         | Cancelled of TimeOffRequest with
@@ -40,14 +39,12 @@ module Logic =
             | NotCreated -> invalidOp "Not created"
             | PendingValidation request
             | Validated request -> request
-            | PendingCancellation request
             | Cancelled request -> request
         member this.IsActive =
             match this with
             | NotCreated -> false
             | PendingValidation _
             | Validated _ -> true
-            | PendingCancellation _
             | Cancelled _ -> false
 
     type UserRequestsState = Map<Guid, RequestState>
@@ -102,13 +99,16 @@ module Logic =
             
     let cancelRequest requestState =
         match requestState with
-        | PendingCancellation request ->
+        | Cancelled _ ->
+            Error "Already cancelled"
+        | Validated request
+        | PendingValidation request ->
             if request.Start.Date <= DateTime.Today then
                 Error "The cancellation request is in the past"
             else
                 Ok [RequestCancelled request]
         | _ ->
-            Error "Request cannot be cancelled"
+            Error "Request cannot be validated"
 
     let decide (userRequests: UserRequestsState) (user: User) (command: Command) =
         let relatedUserId = command.UserId
