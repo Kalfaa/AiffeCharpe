@@ -195,6 +195,7 @@ let creationTests =
       |> When (RequestTimeOff request)
       |> Then (Ok [RequestCreated request]) "The request should have been created"
     }
+
     test "Overlapping Request " {
       let request = {
         UserId = "jdoe"
@@ -206,7 +207,6 @@ let creationTests =
       |> When (RequestTimeOff request)
       |> Then (Error "Overlapping request")  "Request Shouldn't be created"
     }
-    
   ]
 
 
@@ -230,7 +230,7 @@ let validationTests =
 [<Tests>]
 let cancelTest =
   testList "Cancel Request" [
-    test "Cancellation by employee tests" {
+    test "Cancellation by an employee of a request is possible" {
           let request = {
             UserId = "jdoe"
             RequestId = Guid.NewGuid()
@@ -239,9 +239,23 @@ let cancelTest =
           }
           
       Given [ RequestCreated request ]
-      |> ConnectedAs Manager
+      |> ConnectedAs (Employee "jdoe")
       |> When (CancelRequest ("jdoe", request.RequestId))
-      |> Then (Ok [RequestCancel request]) "The request should have been cancel"
+      |> Then (Ok [RequestCancelled request]) "The request should have been cancelled"
+     }
+    
+    test "Cancellation by employee or a previous request is impossible" {
+          let request = {
+            UserId = "jdoe"
+            RequestId = Guid.NewGuid()
+            Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+            End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+          }
+          
+      Given [ RequestCreated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> Then (Error "The cancellation request is in the past") "The request should not have been cancelled"
      }
   ]
   
