@@ -2,6 +2,7 @@ module TimeOff.Tests
 
 open Expecto
 open System
+open System
 
 let Given (events: RequestEvent list) = events
 let ConnectedAs (user: User) (events: RequestEvent list) = events, user
@@ -14,7 +15,8 @@ let Then expected message (events: RequestEvent list, user: User, command: Comma
 
     let globalState = Seq.fold evolveGlobalState Map.empty events
     let userRequestsState = defaultArg (Map.tryFind command.UserId globalState) Map.empty
-    let result = Logic.decide userRequestsState user command
+    let getCurrentDate () = DateTime.Today
+    let result = Logic.decide userRequestsState user command getCurrentDate
     Expect.equal result expected message
 
 open System
@@ -209,6 +211,37 @@ let creationTests =
     }
   ]
 
+[<Tests>]
+let refuseTests =
+  testList "Refuse tests" [
+    test "A request is refused" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 10, 27); HalfDay = AM }
+        End = { Date = DateTime(2020, 10, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCreated request ]
+      |> ConnectedAs Manager
+      |> When (Refuse ("jdoe", request.RequestId))
+      |> Then (Ok [RequestRefused request]) "The request should have been refused"
+    }
+
+    test "A request can't be refused by an employee " {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 10, 27); HalfDay = AM }
+        End = { Date = DateTime(2020, 10, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCreated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (Refuse ("jdoe", request.RequestId))
+      |> Then (Error "Forbidden") "The request should have been forbidden"
+    }
+  ]
 
 [<Tests>]
 let validationTests =
@@ -223,14 +256,29 @@ let validationTests =
 
       Given [ RequestCreated request ]
       |> ConnectedAs Manager
-      |> When (ValidateRequest ("jdoe", request.RequestId))
+      |> When (Validate ("jdoe", request.RequestId))
       |> Then (Ok [RequestValidated request]) "The request should have been validated"
     }
+    
+    test "A request can't be validated by an employee" {
+        let request = {
+          UserId = "jdoe"
+          RequestId = Guid.NewGuid()
+          Start = { Date = DateTime(2020, 12, 27); HalfDay = AM }
+          End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
+          }
+
+      Given [ RequestCreated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (Validate ("jdoe", request.RequestId))
+      |> Then (Error "Forbidden") "The request should have been forbidden"
+    }
   ]
+
 [<Tests>]
 let cancelTest =
   testList "Cancel Request" [
-    test "Cancellation by an employee of a request is possible" {
+    test "Cancellation by an employee of a created request is possible" {
           let request = {
             UserId = "jdoe"
             RequestId = Guid.NewGuid()
@@ -240,11 +288,25 @@ let cancelTest =
           
       Given [ RequestCreated request ]
       |> ConnectedAs (Employee "jdoe")
-      |> When (CancelRequest ("jdoe", request.RequestId))
-      |> Then (Ok [RequestCancelledByUser request]) "The request should have been cancelled"
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByEmployee request]) "The request should have been cancelled"
      }
     
-    test "Cancellation by employee of a cancelled request is impossible" {
+    test "Cancellation by an employee of a validated request is possible" {
+          let request = {
+            UserId = "jdoe"
+            RequestId = Guid.NewGuid()
+            Start = { Date = DateTime(2020, 12, 27); HalfDay = AM }
+            End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
+          }
+          
+      Given [ RequestValidated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByEmployee request]) "The request should have been cancelled"
+     } 
+    
+    test "Cancellation by employee of a cancelled request by himself is impossible" {
       let request = {
         UserId = "jdoe"
         RequestId = Guid.NewGuid()
@@ -252,13 +314,41 @@ let cancelTest =
         End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
       }
 
-      Given [ RequestCancelledByUser request ]
+      Given [ RequestCancelledByEmployee request ]
       |> ConnectedAs (Employee "jdoe")
-      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> When (Cancel ("jdoe", request.RequestId))
       |> Then (Error "Already cancelled") "The request should not have been cancelled"
      }
     
-    test "Cancellation by manager of a past request" {
+    test "Cancellation by employee of a cancelled request by a manager is impossible" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancelledByManager request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Error "Already cancelled") "The request should not have been cancelled"
+     }
+    
+    test "Cancellation by manager of a request in pending validation" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCreated request ]
+      |> ConnectedAs Manager
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
+     }
+    
+    test "Cancellation by manager of a validated past request" {
       let request = {
         UserId = "jdoe"
         RequestId = Guid.NewGuid()
@@ -268,7 +358,21 @@ let cancelTest =
 
       Given [ RequestValidated request ]
       |> ConnectedAs Manager
-      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
+     }
+    
+    test "Cancellation by manager of a validated future request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestValidated request ]
+      |> ConnectedAs Manager
+      |> When (Cancel ("jdoe", request.RequestId))
       |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
      }
     
@@ -282,8 +386,64 @@ let cancelTest =
 
       Given [ RequestValidated request ]
       |> ConnectedAs (Employee "jdoe")
-      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> When (Cancel ("jdoe", request.RequestId))
       |> Then (Ok [RequestCancellationCreated request]) "The request should have been cancelled"
+     }
+    
+    test "A manager can accept a cancellation request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancellationCreated request ]
+      |> ConnectedAs Manager
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
+     }
+    
+    test "A manager can refuse a cancellation request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancellationCreated request ]
+      |> ConnectedAs Manager
+      |> When (RefuseCancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancellationRefused request]) "The request should have been refused"
+     }
+    
+    test "A manager can cancel a request after refusing a cancellation request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancellationRefused request ]
+      |> ConnectedAs Manager
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
+     }
+    
+    test "An employee can't accept a cancellation request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestCancellationCreated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (Cancel ("jdoe", request.RequestId))
+      |> Then (Error "Forbidden") "The request should have been forbidden"
      }
   ]
   
