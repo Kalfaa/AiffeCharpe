@@ -241,24 +241,10 @@ let cancelTest =
       Given [ RequestCreated request ]
       |> ConnectedAs (Employee "jdoe")
       |> When (CancelRequest ("jdoe", request.RequestId))
-      |> Then (Ok [RequestCancelled request]) "The request should have been cancelled"
+      |> Then (Ok [RequestCancelledByUser request]) "The request should have been cancelled"
      }
     
-    test "Cancellation by employee or a previous request is impossible" {
-          let request = {
-            UserId = "jdoe"
-            RequestId = Guid.NewGuid()
-            Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
-            End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
-          }
-          
-      Given [ RequestCreated request ]
-      |> ConnectedAs (Employee "jdoe")
-      |> When (CancelRequest ("jdoe", request.RequestId))
-      |> Then (Error "The cancellation request is in the past") "The request should not have been cancelled"
-     }
-    
-    test "Cancellation by employee or a cancelled request is impossible" {
+    test "Cancellation by employee of a cancelled request is impossible" {
       let request = {
         UserId = "jdoe"
         RequestId = Guid.NewGuid()
@@ -266,7 +252,7 @@ let cancelTest =
         End = { Date = DateTime(2020, 12, 27); HalfDay = PM }
       }
 
-      Given [ RequestCancelled request ]
+      Given [ RequestCancelledByUser request ]
       |> ConnectedAs (Employee "jdoe")
       |> When (CancelRequest ("jdoe", request.RequestId))
       |> Then (Error "Already cancelled") "The request should not have been cancelled"
@@ -283,7 +269,21 @@ let cancelTest =
       Given [ RequestValidated request ]
       |> ConnectedAs Manager
       |> When (CancelRequest ("jdoe", request.RequestId))
-      |> Then (Ok [RequestCancelled request]) "The request should have been cancelled"
+      |> Then (Ok [RequestCancelledByManager request]) "The request should have been cancelled"
+     }
+    
+    test "A user can ask to his manager to cancel a past request" {
+      let request = {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 27); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }
+
+      Given [ RequestValidated request ]
+      |> ConnectedAs (Employee "jdoe")
+      |> When (CancelRequest ("jdoe", request.RequestId))
+      |> Then (Ok [RequestCancellationCreated request]) "The request should have been cancelled"
      }
   ]
   
