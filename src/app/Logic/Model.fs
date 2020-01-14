@@ -167,6 +167,61 @@ module Logic =
         | _ ->
             Error "Request cannot be refused"
     
+    let getWorkingDays (startDate: DateTime) (endDate: DateTime) =
+        let mutable workingDays = 0.0
+        let mutable currentDate = startDate 
+        let numberOfDays = (startDate - endDate).Days
+        
+        for i = 0 to numberOfDays do
+            if not (currentDate.DayOfWeek.Equals DayOfWeek.Saturday || currentDate.DayOfWeek.Equals DayOfWeek.Sunday) then
+                 workingDays <- workingDays + 1.0
+
+            currentDate <- currentDate.AddDays(1.0)
+
+        workingDays
+    
+    let getTotalOffDayForThisYear : float = 25.0
+        
+    let getLastYearOffDayState : float = 4.5
+
+    let countDayOffInPeriod (requests: TimeOffRequest seq) (getCurrentDate: unit -> DateTime) (before: bool) : float =
+        let now = getCurrentDate()
+
+        requests
+            |> Seq.map (fun request ->
+                let mutable numberOfOffDays = 0.0
+                let processRequest = if before then request.Start.Date.CompareTo(now) <= 0 else request.Start.Date.CompareTo(now) >= 0
+
+                if processRequest then
+                    numberOfOffDays <- getWorkingDays request.Start.Date request.End.Date
+
+                    if request.End.HalfDay = HalfDay.AM then
+                        numberOfOffDays <- numberOfOffDays - 0.5
+    
+                    if request.Start.HalfDay = HalfDay.PM then
+                        numberOfOffDays <- numberOfOffDays - 0.5
+
+                numberOfOffDays
+            )
+            |> Seq.reduce (fun sum current -> sum + current)
+
+    let getUsedDayOff (requests: TimeOffRequest seq) (getCurrentDate: unit -> DateTime) : float =
+        countDayOffInPeriod requests getCurrentDate true
+
+    let getPlannedDayOff (requests: TimeOffRequest seq) (getCurrentDate: unit -> DateTime) : float =
+        countDayOffInPeriod requests getCurrentDate false
+
+    let getTimeOffCurrentState (requests: TimeOffRequest seq) (getCurrentDate: unit -> DateTime) : float =
+        let totalOffDayForThisYear = getTotalOffDayForThisYear
+        let lastYearOffDayState = getLastYearOffDayState
+        let usedDayOff = getUsedDayOff requests getCurrentDate
+        let plannedDayOff = getPlannedDayOff requests getCurrentDate
+        totalOffDayForThisYear + lastYearOffDayState - (usedDayOff + plannedDayOff)
+    
+    let getAllUserRequests (userId: UserId) (requests: TimeOffRequest seq) =
+        requests
+            |> Seq.filter (fun request -> request.UserId = userId)
+
     let decide (userRequests: UserRequestsState) (user: User) (command: Command) (getCurrentDate: unit -> DateTime) =
         let relatedUserId = command.UserId
         match user with
