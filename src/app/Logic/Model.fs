@@ -265,3 +265,40 @@ module Logic =
                 else
                     let requestState = defaultArg (userRequests.TryFind requestId) NotCreated                
                     refuseCancellationRequest requestState
+          
+    let isWorkingDay (date: DateTime) : bool =
+        if date.DayOfWeek.Equals DayOfWeek.Saturday || date.DayOfWeek.Equals DayOfWeek.Sunday
+        then false
+        else true
+
+    let countWorkingDays days =
+        Seq.filter isWorkingDay days |> Seq.length
+        
+    let countTimeOffDuration (request: TimeOffRequest) =
+        let daysBetweenStartAndEnd = Seq.unfold (fun day -> if day <= request.End.Date then Some(day, day.AddDays(1.0)) else None) request.Start.Date 
+        let days: double = double (countWorkingDays daysBetweenStartAndEnd)
+        let halfDay = request.Start.HalfDay = request.End.HalfDay
+        let duration = if halfDay then days - 0.5 else days
+        duration
+    
+    let isRequestBetweenTwoDates (startDay: DateTime) (endDay: DateTime) (timeOffRequest: TimeOffRequest) =
+        startDay <= timeOffRequest.Start.Date && endDay >= timeOffRequest.Start.Date
+    
+    let calculateLeaveBetweenTwoDates (startDate: DateTime) (endDate: DateTime) (activeUserRequests: seq<TimeOffRequest>) =
+        activeUserRequests
+        |> Seq.where (isRequestBetweenTwoDates startDate endDate)
+        |> Seq.sumBy countTimeOffDuration
+
+    let getLastYearTakenHolidays (currentDay: DateTime) (timeOffRequests: seq<TimeOffRequest>) =
+        let firstDayOfLastYear = DateTime(currentDay.Year - 1, 1, 1)
+        let firstDayOfTheYear = DateTime(currentDay.Year, 1, 1)
+        let lastYearAndBeforeUserRequests = timeOffRequests |> Seq.where (isRequestBetweenTwoDates firstDayOfLastYear firstDayOfTheYear)
+        (float) (calculateLeaveBetweenTwoDates firstDayOfLastYear firstDayOfTheYear lastYearAndBeforeUserRequests)
+
+    
+    //A : Le cumul des congés attribués depuis le début de l’année civile                
+    let getHolidaysSinceBeginningOfYear (currentDay: DateTime) =
+        ((currentDay.Month - 1) * 25) / 12
+
+    let getLastYearRemainigHolidays (currentDay: DateTime) (timeOffRequests: seq<TimeOffRequest>) =
+        (float) 25 - getLastYearTakenHolidays currentDay timeOffRequests
