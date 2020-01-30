@@ -447,3 +447,12 @@ let cancelTest =
      }
   ]
   
+  
+[<Tests>]
+let durationTests =
+  testList "Duration tests" [
+    test "Gets the correct amount of working days" {
+      let result = Logic.getWorkingDays (DateTime(2020, 1, 30)) (DateTime(2020, 2, 3))
+      Expect.equal result 3.0 "It should be 3 working days"
+     }
+  ]

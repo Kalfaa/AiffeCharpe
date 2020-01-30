@@ -170,7 +170,7 @@ module Logic =
     let getWorkingDays (startDate: DateTime) (endDate: DateTime) =
         let mutable workingDays = 0.0
         let mutable currentDate = startDate 
-        let numberOfDays = (startDate - endDate).Days
+        let numberOfDays = (endDate - startDate).Days
         
         for i = 0 to numberOfDays do
             if not (currentDate.DayOfWeek.Equals DayOfWeek.Saturday || currentDate.DayOfWeek.Equals DayOfWeek.Sunday) then
