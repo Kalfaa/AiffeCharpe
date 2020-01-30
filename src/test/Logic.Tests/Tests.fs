@@ -455,4 +455,66 @@ let durationTests =
       let result = Logic.getWorkingDays (DateTime(2020, 1, 30)) (DateTime(2020, 2, 3))
       Expect.equal result 3.0 "It should be 3 working days"
      }
+    
+    test "Get used day off" {
+      let requests = [{
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 16); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }; {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 1, 6); HalfDay = AM }
+        End = { Date = DateTime(2020, 1, 14); HalfDay = PM }
+      }]
+
+      let getCurrentDate () = DateTime.Today
+      let result = Logic.getUsedDayOff requests getCurrentDate
+
+      Expect.equal result 17.0 "It should be 17"
+    }
+    
+    test "Get planned day off" {
+      let requests = [{
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 16); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }; {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 1, 6); HalfDay = AM }
+        End = { Date = DateTime(2020, 1, 14); HalfDay = PM }
+      }]
+
+      let getCurrentDate () = DateTime(2019, 6, 15)
+      let result = Logic.getPlannedDayOff requests getCurrentDate
+
+      Expect.equal result 17.0 "It should be 17"
+    }
+    
+    test "Get current state" {
+      let requests = [{
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 1, 16); HalfDay = AM }
+        End = { Date = DateTime(2019, 1, 27); HalfDay = PM }
+      }; {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2019, 12, 16); HalfDay = AM }
+        End = { Date = DateTime(2019, 12, 27); HalfDay = PM }
+      }; {
+        UserId = "jdoe"
+        RequestId = Guid.NewGuid()
+        Start = { Date = DateTime(2020, 1, 6); HalfDay = AM }
+        End = { Date = DateTime(2020, 1, 14); HalfDay = PM }
+      }]
+
+      let getCurrentDate () = DateTime(2019, 6, 15)
+      let result = Logic.getTimeOffCurrentState requests getCurrentDate
+
+      Expect.equal result 4.5 "It should be 4.5"
+    }
   ]
